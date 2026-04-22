@@ -1,0 +1,1220 @@
+import os
+import tkinter as tk
+from tkinter import ttk, simpledialog, messagebox, filedialog
+from datetime import datetime, timezone
+import csv
+import re
+import ctypes
+import webbrowser
+import subprocess
+
+# Change the working directory to the current drive's \Net Attendance Manager directory
+current_drive = os.path.splitdrive(os.getcwd())[0]
+net_attendance_manager_path = os.path.join(current_drive, r'\Net Attendance Manager')
+
+# Check if the directory exists
+if os.path.exists(net_attendance_manager_path):
+    os.chdir(net_attendance_manager_path)
+else:
+    raise FileNotFoundError(f"The directory '{net_attendance_manager_path}' does not exist.")
+
+# Set the PATH environment variable to include the specified directories
+os.environ['PATH'] = ';'.join([
+    os.environ['PATH'],
+    os.path.join(current_drive, r'\Net Attendance Manager'),
+    os.path.join(current_drive, r'\Net Attendance Manager\Emergency'),
+    os.path.join(current_drive, r'\Net Attendance Manager\Past Rosters'),
+    os.path.join(current_drive, r'\Net Attendance Manager\UserGuide_files')
+])
+
+class TableApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Net Attendance Manager")
+        self.root.resizable(False, False)
+        self.frame = tk.Frame(self.root, borderwidth=2, relief="groove")
+        self.frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.columns = ["Call Sign", "QTH", "Name", "Status", "Relayed", "Traffic", "Sweep?", "This Month"]
+        self.data = []
+        self.unsaved_changes = False
+        self.stopwatch_running = False
+        self.first_alert_triggered = False
+        self.status_counts = {"Absent": 0, "Present": 0, "Excused": 0}
+        self.total_call_sign_count = 0
+        self.time_format = "24-hour"
+        self.stopwatch_start_time = None
+        self.time_start = None
+        self.time_end = None
+        self.net_control = ""
+        self.attendance = {name: {} for name in ["Person 1", "Person 2", "Person 3", "Person 4"]}
+        self.last_search_window_position = None
+        self.search_windows = [] # List to track all open search windows
+        self.current_search_index = -1 # Track the currently focused search window
+        # Load regions from CSV
+        self.alaska_towns = self.load_regions_from_csv('regions.csv')
+        self.visitor_count = 0
+        self.current_net_name = ""
+        self.loaded_header = None
+        self.refresh_button = None
+        self.reset_button = None
+        self.dark_mode = False
+        # Default preamble (shown before any net is started)
+        self.preamble_text = "Preamble will be loaded when you start a net."
+        self.create_widgets()
+        self.center_view()
+        self.update_clock()
+        self.root.protocol("WM_DELETE_WINDOW", self.confirm_exit)
+        self.present_today = set()
+        self.turn_caps_lock_on()
+        self.minimize_command_window()
+
+    def load_preamble_text(self, net_type="rollcall"):
+        """
+        Load preamble from CSV file depending on net type.
+          - "rollcall" → PreambleRollCallNet.csv
+          - "open" → PreambleOpenNet.csv
+        """
+        if net_type.lower() == "open":
+            filename = "PreambleOpenNet.csv"
+        else:
+            filename = "PreambleRollCallNet.csv"
+        try:
+            with open(filename, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                lines = []
+                for row in reader:
+                    cleaned = " ".join(cell.strip() for cell in row if cell.strip())
+                    if cleaned:
+                        lines.append(cleaned)
+                if lines:
+                    return "\n\n".join(lines)
+                else:
+                    return "(Preamble file is empty)"
+        except FileNotFoundError:
+            return f"Could not find {filename} in the working directory."
+        except Exception as e:
+            return f"Error reading {filename}: {str(e)}"
+
+    def create_widgets(self):
+        self.create_menu_bar()
+        self.create_top_frame()
+        self.create_tree_view()
+        self.create_stats_view()
+        self.create_sweepers_view()
+
+    def create_menu_bar(self):
+        menu_frame = tk.Frame(self.frame)
+        menu_frame.grid(row=0, column=0, sticky="ew")
+        menu_bar = tk.Menu(menu_frame)
+        self.root.config(menu=menu_bar)
+        self.create_file_menu(menu_bar)
+        self.create_options_menu(menu_bar)
+        self.create_help_menu(menu_bar)
+
+    def create_file_menu(self, menu_bar):
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Open", command=self.open_file)
+        file_menu.add_command(label="Save", command=self.save_file)
+        file_menu.add_separator()
+        data_management_menu = tk.Menu(file_menu, tearoff=0)
+        file_menu.add_cascade(label="Data Management", menu=data_management_menu)
+        data_management_menu.add_command(label="Database Utility", command=self.launch_database_utility)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.confirm_exit)
+
+    def create_options_menu(self, menu_bar):
+        options_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Options", menu=options_menu)
+        self.font_size_var = tk.StringVar(value="Small")
+        font_size_menu = tk.Menu(options_menu, tearoff=0)
+        options_menu.add_cascade(label="Font Size", menu=font_size_menu)
+        font_size_menu.add_checkbutton(label="Small", variable=self.font_size_var, onvalue="Small", offvalue="Medium", command=lambda: self.change_font_size(self.font_size_var.get()))
+        font_size_menu.add_checkbutton(label="Medium", variable=self.font_size_var, onvalue="Medium", offvalue="Small", command=lambda: self.change_font_size(self.font_size_var.get()))
+        font_size_menu.add_checkbutton(label="Large", variable=self.font_size_var, onvalue="Large", offvalue="Medium", command=lambda: self.change_font_size(self.font_size_var.get()))
+        options_menu.add_command(label="Dark Mode", command=self.toggle_dark_mode)
+
+    def create_help_menu(self, menu_bar):
+        help_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="User Guide", command=self.show_user_guide)
+        help_menu.add_command(label="System Requirements", command=self.show_system_requirements)
+        help_menu.add_command(label="Disclaimer", command=self.show_disclaimer)
+
+    def create_top_frame(self):
+        top_frame = tk.Frame(self.frame)
+        top_frame.grid(row=0, column=0, sticky="ew")
+        self.clock_label = tk.Label(top_frame, text="", font=("Arial", 14))
+        self.clock_label.pack(side="left", padx=(5, 10))
+        self.clock_label.bind("<Button-1>", self.toggle_time_format)
+        self.time_format_label = tk.Label(top_frame, text="", font=("Arial", 10))
+        self.time_format_label.pack(side="left", padx=(5, 10))
+        self.start_stop_button = tk.Button(top_frame, text="Start Roll Call", command=self.start_stop_roll_call, bg="green")
+        self.start_stop_button.pack(side="left", padx=(5, 10))
+        self.open_net_button = tk.Button(top_frame, text="Open Net", command=self.open_net)
+        self.open_net_button.pack(side="left", padx=(5, 10))
+        self.search_button = tk.Button(top_frame, text="Search", command=self.search_table)
+        self.search_button.pack(side="left", padx=(5, 10))
+        self.stopwatch_label = tk.Label(top_frame, text="", font=("Arial", 14), bg="green")
+        self.stopwatch_label.pack(side="left", padx=(5, 10))
+        self.stopwatch_label.bind("<Button-1>", self.handle_stopwatch_click)
+        self.start_info_label = tk.Label(top_frame, text="", font=("Arial", 10))
+        self.start_info_label.pack(side="left", padx=(5, 10))
+        self.results_label = tk.Label(top_frame, text="", font=("Arial", 10))
+        self.results_label.pack(side="left", padx=(5, 10))
+        self.refresh_button = tk.Button(top_frame, text="Refresh", command=self.refresh_data)
+        self.refresh_button.pack(side="left", padx=(5, 5))
+        self.refresh_button.pack_forget()
+        self.reset_button = tk.Button(top_frame, text="Reset", command=self.reset_application,
+                                      bg="#d9534f", fg="white", font=("Arial", 10, "bold"))
+        self.reset_button.pack(side="left", padx=(5, 10))
+        self.reset_button.pack_forget()
+
+    def create_tree_view(self):
+        style = ttk.Style()
+        style.configure("Separator.Treeview", background="lightgrey")
+        self.tree = ttk.Treeview(self.frame, columns=self.columns, show="headings", height=14)
+        self.tree.grid(row=1, column=0, sticky="nsew")
+        for col in self.columns:
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_column(c))
+            if col == "QTH":
+                self.tree.column(col, width=150, anchor='center')
+            elif col == "Traffic":
+                self.tree.column(col, width=150, anchor='center')
+            else:
+                self.tree.column(col, width=100, anchor='center')
+        self.tree.bind("<Button-1>", self.handle_click)
+        self.tree.bind("<Double-1>", self.handle_double_click)
+        self.tree.bind("<Button-3>", self.show_context_menu)
+        self.tree.bind("<Up>", self.scroll_up)
+        self.tree.bind("<Down>", self.scroll_down)
+        self.tree.bind("<Tab>", self.handle_tab)
+        self.scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.grid(row=1, column=1, sticky="ns")
+        self.context_menu = tk.Menu(self.frame, tearoff=0)
+        self.context_menu.add_command(label="Insert row above", command=lambda: self.modify_row('insert_above'))
+        self.context_menu.add_command(label="Insert row below", command=lambda: self.modify_row('insert_below'))
+        self.context_menu.add_command(label="Delete row", command=self.delete_row)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Copy row", command=self.copy_row)
+        self.context_menu.add_command(label="Paste row", command=self.paste_row)
+        self.sort_menu = tk.Menu(self.frame, tearoff=0)
+        self.sort_menu.add_command(label="Sort Ascending", command=lambda: self.sort_column(self.columns[0], ascending=True))
+        self.sort_menu.add_command(label="Sort Descending", command=lambda: self.sort_column(self.columns[0], ascending=False))
+        style.configure("LightGreen.Treeview", background="lightgreen")
+
+    def create_stats_view(self):
+        self.stats_label = tk.Label(self.frame, text="Stats", font=("Arial", 12))
+        self.stats_label.grid(row=3, column=0, sticky="nsew", padx=10, pady=(10, 0))
+        self.stats_text_view = tk.Text(self.frame, height=12, width=50, font=("Arial", 10))
+        self.stats_text_view.grid(row=4, column=0, sticky="nsew", padx=10, pady=10)
+        self.stats_text_view.config(state=tk.DISABLED)
+
+    def create_sweepers_view(self):
+        self.sweepers_label = tk.Label(self.frame, text="Sweepers", font=("Arial", 12))
+        self.sweepers_label.grid(row=5, column=0, sticky="nsew", padx=10, pady=(10, 0))
+        self.sweepers_tree = ttk.Treeview(self.frame, columns=["Call Sign", "QTH", "Name", "Region"], show="headings", height=5)
+        self.sweepers_tree.grid(row=6, column=0, sticky="nsew", padx=10, pady=10)
+        self.sweepers_tree.heading("Call Sign", text="Call Sign")
+        self.sweepers_tree.heading("QTH", text="QTH")
+        self.sweepers_tree.heading("Name", text="Name")
+        self.sweepers_tree.heading("Region", text="Region")
+        self.sweepers_tree.column("Call Sign", width=100, anchor='center')
+        self.sweepers_tree.column("QTH", width=100, anchor='center')
+        self.sweepers_tree.column("Name", width=100, anchor='center')
+        self.sweepers_tree.column("Region", width=100, anchor='center')
+        self.sweepers_scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=self.sweepers_tree.yview)
+        self.sweepers_tree.configure(yscrollcommand=self.sweepers_scrollbar.set)
+        self.sweepers_scrollbar.grid(row=6, column=1, sticky="ns")
+        self.sweepers_context_menu = tk.Menu(self.frame, tearoff=0)
+        self.sweepers_context_menu.add_command(label="Clear Sweepers List", command=self.clear_sweepers_list)
+        self.sweepers_context_menu.add_command(label="Delete Sweeper", command=self.delete_sweeper)
+        self.sweepers_tree.bind("<Button-3>", self.show_sweepers_context_menu)
+
+    def show_context_menu(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "heading":
+            col = self.tree.identify_column(event.x)
+            if col == "#1":
+                self.sort_menu.post(event.x_root, event.y_root)
+        else:
+            self.context_menu.post(event.x_root, event.y_root)
+
+    def show_sweepers_context_menu(self, event):
+        self.sweepers_context_menu.post(event.x_root, event.y_root)
+
+    def handle_click(self, event):
+        if not self.tree.get_children():
+            messagebox.showwarning("No Data", "Please load data first.")
+            return
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "heading":
+            col = self.tree.identify_column(event.x)
+            if col in ["#1", "#2", "#3"]:
+                self.sort_column(self.columns[int(col[1:]) - 1])
+            return
+        col = self.tree.identify_column(event.x)
+        item = self.tree.identify_row(event.y)
+        if col in ["#4", "#5", "#6", "#7", "#8"]:
+            if not self.stopwatch_running:
+                messagebox.showwarning("Net Timer Not Started", "Please start the roll call first.")
+                return
+        if col == "#4":
+            self.root.after(200, lambda: self.check_click_duration(item))
+        elif col == "#5":
+            self.handle_relayed_click(item)
+        elif col == "#6":
+            self.handle_traffic_click(item)
+        elif col == "#7":
+            self.handle_sweep_click(item)
+        elif col == "#8":
+            self.handle_this_month_click(item)
+
+    def handle_double_click(self, event):
+        if not self.tree.get_children():
+            messagebox.showwarning("No Data", "Please load data first.")
+            return
+        col = self.tree.identify_column(event.x)
+        item = self.tree.identify_row(event.y)
+        if col in ["#1", "#2", "#3"]:
+            self.edit_cell(item, col)
+        elif col == "#4":
+            self.update_status_cell(item, "Excused")
+        elif col == "#8":
+            self.edit_this_month_cell(item)
+
+    def check_click_duration(self, item):
+        if self.tree.focus() == item:
+            self.update_status_cell(item, "Present")
+        else:
+            self.update_status_cell(item, "Absent")
+
+    def update_status_cell(self, item, new_value):
+        values = list(self.tree.item(item, "values"))
+        old_status = values[3]
+        values[3] = new_value
+        self.tree.item(item, values=values)
+        self.unsaved_changes = True
+        self.update_status_counts(old_status, new_value)
+        if new_value == "Present":
+            call_sign = values[0]
+            if call_sign not in self.present_today:
+                self.present_today.add(call_sign)
+                this_month = int(values[7]) if values[7].isdigit() else 0
+                this_month += 1
+                values[7] = str(this_month)
+                self.tree.item(item, values=values)
+            name = values[2]
+            if "/" in name:
+                names = name.split("/")
+                self.status_counts["Present"] += len(names) - 1
+                for name in names:
+                    self.record_attendance(name.strip(), datetime.now().day, new_value)
+            else:
+                self.record_attendance(name, datetime.now().day, new_value)
+            call_sign = values[0]
+            if "/" in call_sign:
+                call_signs = call_sign.split("/")
+                self.total_call_sign_count += len(call_signs) - 1
+            if values[1] == "VISITOR" and values[2] == "VISITOR":
+                self.visitor_count += 1
+        next_item = self.tree.next(item)
+        if next_item:
+            self.tree.focus(next_item)
+            self.tree.selection_set(next_item)
+        self.update_results_label("Status updated")
+        self.record_attendance(values[2], datetime.now().day, new_value)
+
+    def handle_sweep_click(self, item):
+        if self.stopwatch_running:
+            values = list(self.tree.item(item, "values"))
+            if values[6] == "Yes":
+                values[6] = ""
+                self.tree.item(item, values=values)
+                self.unsaved_changes = True
+                self.remove_from_sweepers_tree(values[0])
+            else:
+                self.update_sweep_cell(item, "Yes")
+        else:
+            messagebox.showwarning("Net Timer Not Started", "Please start the net timer first.")
+
+    def remove_from_sweepers_tree(self, call_sign):
+        for item in self.sweepers_tree.get_children():
+            if self.sweepers_tree.item(item, "values")[0] == call_sign:
+                self.sweepers_tree.delete(item)
+                self.update_results_label("Sweeper removed.")
+                break
+
+    def update_sweep_cell(self, item, sweep_input):
+        values = list(self.tree.item(item, "values"))
+        values[6] = sweep_input
+        self.tree.item(item, values=values)
+        self.unsaved_changes = True
+        if values[3] == "":
+            self.update_status_cell(item, "Present")
+        next_item = self.tree.next(item)
+        if next_item:
+            self.tree.focus(next_item)
+            self.tree.selection_set(next_item)
+        self.update_sweepers_tree(values[0])
+
+    def update_sweepers_tree(self, call_sign):
+        qth = self.get_qth_for_call_sign(call_sign)
+        name = self.get_name_for_call_sign(call_sign)
+        region = self.alaska_towns.get(qth, "Unknown")
+        for item in self.sweepers_tree.get_children():
+            if self.sweepers_tree.item(item, "values")[0] == call_sign:
+                self.sweepers_tree.item(item, values=(call_sign, qth, name, region))
+                return
+        self.sweepers_tree.insert("", "end", values=(call_sign, qth, name, region))
+
+    def get_qth_for_call_sign(self, call_sign):
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            if values[0] == call_sign:
+                return values[1].upper()
+        return "Unknown"
+
+    def get_name_for_call_sign(self, call_sign):
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            if values[0] == call_sign:
+                return values[2]
+        return "Unknown"
+
+    def handle_relayed_click(self, item):
+        relayed_input = simpledialog.askstring("Input", "Enter Name or US Amateur Call Sign:")
+        if relayed_input:
+            self.update_relayed_cell(item, relayed_input)
+
+    def update_relayed_cell(self, item, relayed_input):
+        values = list(self.tree.item(item, "values"))
+        if relayed_input != "0":
+            values[4] = relayed_input
+            self.tree.item(item, values=values)
+            self.unsaved_changes = True
+        if self.call_sign_exists(relayed_input):
+            next_item = self.tree.next(item)
+            if next_item:
+                self.tree.focus(next_item)
+                self.tree.selection_set(next_item)
+
+    def call_sign_exists(self, call_sign):
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            if values[0] == call_sign:
+                return True
+        return False
+
+    def toggle_time_format(self, event=None):
+        if self.time_format == "24-hour":
+            self.time_format = "12-hour"
+        elif self.time_format == "12-hour":
+            self.time_format = "UTC"
+        else:
+            self.time_format = "24-hour"
+        self.update_clock()
+
+    def update_clock(self):
+        now = datetime.now(timezone.utc) if self.time_format == "UTC" else datetime.now()
+        if self.time_format == "24-hour":
+            time_str = now.strftime("%H:%M:%S")
+            time_format_str = "24-hour"
+        elif self.time_format == "12-hour":
+            time_str = now.strftime("%I:%M:%S %p")
+            time_format_str = "12-hour"
+        else:
+            time_str = now.strftime("%H:%M:%S UTC")
+            time_format_str = "UTC"
+        self.clock_label.config(text=time_str)
+        self.time_format_label.config(text=time_format_str)
+        self.start_info_label.config(text=f"Net Control: {self.net_control if self.net_control else 'N/A'}")
+        self.root.after(1000, self.update_clock)
+
+    def start_stop_roll_call(self):
+        if self.stopwatch_running:
+            self.stopwatch_running = False
+            self.start_stop_button.config(text="Start Roll Call", bg="green")
+            self.update_results_label("Stopped Roll Call")
+            self.time_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.display_totals_and_times()
+            confirm = messagebox.askyesno("Save Data", "Do you want to save the data?")
+            if confirm:
+                self.save_file()
+        else:
+            if not self.tree.get_children():
+                messagebox.showwarning("No Data", "Please load data first.")
+                return
+            # Load roll call preamble
+            self.preamble_text = self.load_preamble_text("rollcall")
+            net_control = simpledialog.askstring("Input", "Enter US Amateur CALL SIGN:")
+            if not net_control:
+                return
+            net_control = self.validate_call_sign(net_control)
+            if not net_control:
+                return
+            self.net_control = net_control
+            self.stopwatch_running = True
+            self.stopwatch_start_time = datetime.now()
+            self.time_start = self.stopwatch_start_time.strftime("%Y-%m-%d %H:%M:%S")
+            self.time_end = None
+            self.start_stop_button.config(text="Stop Roll Call", bg="red")
+            self.update_stopwatch()
+            self.reset_status_counts()
+            self.reset_table_statuses()
+            self.show_preamble_and_focus_first_row(net_control)
+            self.clear_sweepers_list()
+            self.display_totals_and_times()
+
+    def open_net(self):
+        if self.stopwatch_running:
+            return
+        if not self.tree.get_children():
+            messagebox.showwarning("No Data", "Please load data first.")
+            return
+        # Load open net preamble
+        self.preamble_text = self.load_preamble_text("open")
+        net_control = simpledialog.askstring("Input", "Enter US Amateur Call Sign:")
+        if not net_control:
+            return
+        net_control = self.validate_call_sign(net_control)
+        if not net_control:
+            return
+        self.net_control = net_control
+        self.stopwatch_running = True
+        self.stopwatch_start_time = datetime.now()
+        self.time_start = self.stopwatch_start_time.strftime("%Y-%m-%d %H:%M:%S")
+        self.time_end = None
+        self.start_stop_button.config(text="Stop Net", bg="red")
+        self.update_stopwatch()
+        self.reset_status_counts()
+        self.reset_table_statuses()
+        # Show preamble popup (same behavior as Roll Call)
+        self.show_preamble_and_focus_first_row(net_control)
+        self.start_info_label.config(text=f"Net Control: {self.net_control}")
+        self.update_results_label("Net opened. Timer started.")
+        self.stats_text_view.config(state=tk.NORMAL)
+        self.stats_text_view.delete(1.0, tk.END)
+        self.stats_text_view.config(state=tk.DISABLED)
+        self.sweepers_tree.delete(*self.sweepers_tree.get_children())
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, "values"))
+            values[6] = ""
+            values[7] = "0"
+            self.tree.item(item, values=values)
+            self.unsaved_changes = True
+        # Automatically open search after preamble is read
+        self.search_table()
+
+    def show_preamble_and_focus_first_row(self, net_control):
+        preamble_window = tk.Toplevel(self.root)
+        preamble_window.title("Preamble")
+        preamble_text = tk.Text(preamble_window, wrap=tk.WORD, font=("Arial", 12))
+        preamble_text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        preamble_text.insert(tk.END, self.preamble_text)
+        preamble_text.config(state=tk.DISABLED)
+        button_frame = tk.Frame(preamble_window)
+        button_frame.pack(pady=10)
+        button_width = 20
+        ok_button = tk.Button(button_frame, text="Ok", width=button_width, bg="green", fg="white", command=preamble_window.destroy)
+        ok_button.grid(row=0, column=0, padx=5)
+        emergency_button = tk.Button(button_frame, text="Emergency Traffic", width=button_width, bg="red", fg="white", command=self.handle_emergency_traffic)
+        emergency_button.grid(row=0, column=1, padx=5)
+        first_item = self.tree.get_children()[0] if self.tree.get_children() else None
+        if first_item:
+            self.tree.focus(first_item)
+            self.tree.selection_set(first_item)
+        self.update_status_text_view(
+            f"Net Control: {net_control}\n"
+            f"Preamble Read"
+        )
+        self.reset_status_and_columns()
+
+    def handle_emergency_traffic(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        emergency_script_path = os.path.join(current_dir, "Emergency", "emergency.py")
+        if self.current_net_name:
+            subprocess.run(["python", emergency_script_path, self.current_net_name])
+        else:
+            messagebox.showwarning("No Net Name", "Current net name is not set. Please set it before proceeding.")
+
+    def update_stopwatch(self):
+        if self.stopwatch_running:
+            elapsed_time = datetime.now() - self.stopwatch_start_time
+            minutes, seconds = divmod(elapsed_time.seconds, 60)
+            self.stopwatch_label.config(text=f"{minutes:02}:{seconds:02}")
+            self.start_info_label.config(text=f"Net Control: {self.net_control}")
+            if elapsed_time.seconds // 600 >= 1 and not self.first_alert_triggered:
+                self.stopwatch_label.config(bg="yellow")
+                self.first_alert_triggered = True
+                self.root.after(60000, self.reset_stopwatch_color)
+            self.root.after(1000, self.update_stopwatch)
+
+    def reset_stopwatch_color(self):
+        if self.stopwatch_label.cget("bg") == "yellow":
+            self.stopwatch_label.config(bg="green")
+            self.first_alert_triggered = False
+
+    def handle_stopwatch_click(self, event):
+        if self.stopwatch_label.cget("bg") == "yellow":
+            self.stopwatch_label.config(bg="green")
+            self.first_alert_triggered = False
+
+    def modify_row(self, action):
+        selected_item = self.tree.selection()
+        if selected_item:
+            index = self.tree.index(selected_item)
+            if action == 'insert_above':
+                self.tree.insert("", index, values=self.generate_row(index))
+            elif action == 'insert_below':
+                self.tree.insert("", index + 1, values=self.generate_row(index + 1))
+            self.total_call_sign_count += 1
+            self.unsaved_changes = True
+            self.apply_separator_style()
+
+    def delete_row(self):
+        selected_item = self.tree.selection()
+        if selected_item:
+            self.tree.delete(selected_item)
+            self.total_call_sign_count -= 1
+            self.unsaved_changes = True
+            self.apply_separator_style()
+
+    def copy_row(self):
+        selected_item = self.tree.selection()
+        if selected_item:
+            self.copied_row = self.tree.item(selected_item, "values")
+
+    def paste_row(self):
+        if hasattr(self, 'copied_row'):
+            selected_item = self.tree.selection()
+            if selected_item:
+                index = self.tree.index(selected_item) + 1
+                self.tree.insert("", index, values=self.copied_row)
+                self.unsaved_changes = True
+                self.apply_separator_style()
+
+    def open_file(self):
+        file_path = filedialog.askopenfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")])
+        if file_path:
+            self.loaded_file_name = file_path.split("/")[-1]
+            self.data = []
+            self.tree.delete(*self.tree.get_children())
+            self.sweepers_tree.delete(*self.sweepers_tree.get_children())
+            self.visitor_count = 0
+            with open(file_path, "r") as file:
+                reader = csv.reader(file)
+                self.loaded_header = next(reader)
+                if self.loaded_header != ["Time Start", "Time End", "Total Present", "Current Net Name", "Total Excused", "Net Control"]:
+                    messagebox.showwarning("Invalid Header", "The file does not have the expected header. Loading may be incorrect.")
+                    return
+                additional_data = next(reader)
+                self.time_start = additional_data[0]
+                self.time_end = additional_data[1]
+                self.current_net_name = additional_data[3]
+                self.net_control = additional_data[5]
+                self.status_counts["Present"] = 0
+                self.status_counts["Excused"] = 0
+                for row in reader:
+                    if len(row) < len(self.columns):
+                        row.extend([''] * (len(self.columns) - len(row)))
+                    if len(row) > 4 and row[4] == "0":
+                        row[4] = ""
+                    if len(row) > 3 and row[3] == "Unknown":
+                        row[3] = "Absent"
+                    self.tree.insert("", "end", values=row[:8])
+                    if len(row) > 3 and row[3]:
+                        self.update_status_counts(None, row[3])
+                    if len(row) > 3 and row[3] == "=data?":
+                        self.display_totals_and_times()
+                    if len(row) > 6 and row[6] == "Yes":
+                        call_sign = row[0]
+                        qth = row[1].upper()
+                        name = row[2]
+                        region = self.alaska_towns.get(qth, "Unknown")
+                        self.sweepers_tree.insert("", "end", values=(call_sign, qth, name, region))
+                    if len(row) > 1 and row[1] == "VISITOR" and len(row) > 2 and row[2] == "VISITOR":
+                        self.visitor_count += 1
+            self.unsaved_changes = False
+            self.update_results_label("File loaded")
+            self.display_totals_and_times()
+            self.apply_separator_style()
+            first_item = self.tree.get_children()[0] if self.tree.get_children() else None
+            if first_item:
+                values = self.tree.item(first_item, "values")
+                if len(values) > 3 and not values[3]:
+                    self.tree.focus(first_item)
+                    self.tree.selection_set(first_item)
+            # Show data-dependent buttons
+            self.refresh_button.pack(side="left", padx=(5, 5))
+            self.reset_button.pack(side="left", padx=(5, 10))
+
+    def save_file(self):
+        now = datetime.now()
+        month_str = now.strftime("%B")
+        day_str = now.strftime("%d")
+        year_str = now.strftime("%Y")
+        default_filename = f"Roll Call Net Working {month_str} {day_str} {year_str}.csv"
+        file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")], initialfile=default_filename)
+        if file_path:
+            with open(file_path, "w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(self.loaded_header)
+                writer.writerow([self.time_start, self.time_end, self.status_counts["Present"], self.current_net_name, self.status_counts["Excused"], self.net_control])
+                for row in self.tree.get_children():
+                    writer.writerow(self.tree.item(row, "values"))
+            self.unsaved_changes = False
+            messagebox.showinfo("Save", "Data saved successfully.")
+            with open("Current Net.csv", "w") as current_net_file:
+                current_net_file.write(f"{self.current_net_name}.csv")
+
+    def scroll_up(self, event):
+        self.tree.yview_scroll(-1, "units")
+
+    def scroll_down(self, event):
+        self.tree.yview_scroll(1, "units")
+
+    def center_view(self):
+        self.root.update_idletasks()
+        width = self.root.winfo_width()
+        height = self.root.winfo_height()
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def confirm_exit(self):
+        if self.unsaved_changes:
+            confirm = messagebox.askyesno("Unsaved Changes", "There are unsaved changes. Do you want to save before exiting?")
+            if confirm:
+                self.save_file()
+            else:
+                self.root.quit()
+        else:
+            self.root.quit()
+
+    def sort_column(self, col, ascending=True):
+        col_idx = self.columns.index(col)
+        data = [(self.tree.set(child, col), child) for child in self.tree.get_children('')]
+        if col in ["Call Sign", "QTH", "Name"]:
+            data.sort(key=lambda x: str(x[0]), reverse=not ascending)
+        elif col in ["This Month"]:
+            data.sort(key=lambda x: int(x[0]) if x[0].isdigit() else float('inf'), reverse=not ascending)
+        else:
+            data.sort(reverse=not ascending)
+        for index, (_, child) in enumerate(data):
+            self.tree.move(child, '', index)
+        self.tree.heading(col, command=lambda: self.sort_column(col, not ascending))
+        self.apply_separator_style()
+
+    def cycle_search_windows(self, event, search_window):
+        if not self.search_windows:
+            return
+        try:
+            current_index = self.search_windows.index(search_window)
+        except ValueError:
+            return
+        self.current_search_index = (current_index + 1) % len(self.search_windows)
+        next_window = self.search_windows[self.current_search_index]
+        next_window.lift()
+        for widget in next_window.winfo_children():
+            if isinstance(widget, tk.Entry):
+                widget.focus_set()
+                break
+        return "break"
+
+    def search_table(self):
+        if not self.tree.get_children():
+            messagebox.showwarning("No Data", "The table is empty. Please load data first.")
+            return
+        search_window = tk.Toplevel(self.root)
+        search_window.title("Search Table")
+        search_window.geometry("400x200")
+        search_window.resizable(False, False)
+        search_window.transient(self.root)
+        self.search_windows.append(search_window)
+        self.current_search_index = len(self.search_windows) - 1
+        self.root.update_idletasks()
+        search_width = 400
+        search_height = 200
+        if self.last_search_window_position:
+            last_x, last_y = self.last_search_window_position
+            x = last_x + 20
+            y = last_y + 20
+        else:
+            main_x = self.root.winfo_x()
+            main_y = self.root.winfo_y()
+            main_width = self.root.winfo_width()
+            main_height = self.root.winfo_height()
+            x = main_x + (main_width // 2) - (search_width // 2)
+            y = main_y + (main_height // 2) - (search_height // 2)
+        search_window.geometry(f"{search_width}x{search_height}+{x}+{y}")
+        self.last_search_window_position = (x, y)
+        search_window.lift()
+        tk.Label(search_window, text="Enter search terms (separated by commas):", font=("Arial", 12)).pack(pady=10)
+        search_entry = tk.Entry(search_window, width=50, font=("Arial", 12))
+        search_entry.pack(pady=10)
+        search_entry.focus_set()
+        def perform_search():
+            search_input = search_entry.get()
+            if not search_input:
+                self.turn_caps_lock_off()
+                return
+            search_terms = [term.strip().lower() for term in search_input.split(',') if term.strip()]
+            if not search_terms:
+                self.turn_caps_lock_off()
+                return
+            self.tree.selection_remove(*self.tree.selection())
+            found = False
+            matched_items = []
+            for item in self.tree.get_children():
+                values = self.tree.item(item, "values")
+                row_values = [str(values[i]).lower() for i in range(3)]
+                if any(any(term in value for value in row_values) for term in search_terms):
+                    matched_items.append(item)
+                    found = True
+            if matched_items:
+                for item in matched_items:
+                    self.tree.selection_add(item)
+                self.tree.focus(matched_items[0])
+                self.tree.see(matched_items[0])
+                self.update_results_label(f"Found {len(matched_items)} matching row(s)")
+            if not found:
+                add_new = messagebox.askyesno("No Results", "No results found. Add a new row with the first search term?", parent=search_window)
+                if add_new:
+                    self.add_new_row_with_search_query(search_terms[0])
+            self.turn_caps_lock_off()
+            search_entry.delete(0, tk.END)
+        def close_search_window():
+            self.turn_caps_lock_off()
+            try:
+                self.search_windows.remove(search_window)
+                if self.current_search_index >= len(self.search_windows):
+                    self.current_search_index = len(self.search_windows) - 1
+            except ValueError:
+                pass
+            search_window.destroy()
+        button_frame = tk.Frame(search_window)
+        button_frame.pack(pady=10)
+        tk.Button(button_frame, text="Search", command=perform_search, bg="green", fg="white", width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Close", command=close_search_window, bg="red", fg="white", width=10).pack(side=tk.LEFT, padx=5)
+        search_window.bind("<Return>", lambda event: perform_search())
+        search_window.bind("<Tab>", lambda event: self.cycle_search_windows(event, search_window))
+        if self.dark_mode:
+            search_window.config(bg="black")
+            for widget in search_window.winfo_children():
+                widget.config(bg="black", fg="white")
+                if isinstance(widget, tk.Frame):
+                    for child in widget.winfo_children():
+                        child.config(bg="black", fg="white")
+
+    def add_new_row_with_search_query(self, search_term):
+        # Force callsign to uppercase (standard for amateur radio)
+        search_term_upper = search_term.strip().upper()
+        new_row = self.generate_row(0)
+        new_row[0] = search_term_upper
+        new_row[1] = "VISITOR"
+        new_row[2] = "VISITOR"
+        new_row[3] = "Present"
+        new_item = self.tree.insert("", 0, values=new_row)
+        self.tree.focus(new_item)
+        self.tree.selection_set(new_item)
+        self.tree.see(new_item)
+        self.tree.update_idletasks()
+        self.unsaved_changes = True
+        self.update_results_label(f"New row added with search query: {search_term_upper}")
+        self.apply_separator_style()
+        self.visitor_count += 1
+
+    def update_status_counts(self, old_status, new_status):
+        if old_status in self.status_counts:
+            self.status_counts[old_status] -= 1
+        if new_status in self.status_counts:
+            self.status_counts[new_status] += 1
+        self.total_call_sign_count = 0
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            call_sign = values[0]
+            if "/" in call_sign:
+                call_signs = call_sign.split("/")
+                self.total_call_sign_count += len(call_signs)
+            else:
+                self.total_call_sign_count += 1
+        self.display_totals_and_times()
+
+    def update_results_label(self, message):
+        self.results_label.config(text=message)
+
+    def update_status_text_view(self, text):
+        self.stats_text_view.config(state=tk.NORMAL)
+        self.stats_text_view.delete(1.0, tk.END)
+        self.stats_text_view.insert(tk.END, text)
+        self.stats_text_view.config(state=tk.DISABLED)
+
+    def display_totals_and_times(self):
+        present_count = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[3] == "Present")
+        status_summary = (
+            f"Roster: {self.total_call_sign_count}, "
+            f"Present: {self.status_counts['Present']}, "
+            f"Excused: {self.status_counts['Excused']}, "
+            f"Visitors: {self.visitor_count}"
+        )
+        traffic_count = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[5])
+        relayed_count = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[4])
+        sweep_count = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[6] == "Yes")
+        if self.time_start and self.time_end:
+            start_time = datetime.strptime(self.time_start, "%Y-%m-%d %H:%M:%S")
+            end_time = datetime.strptime(self.time_end, "%Y-%m-%d %H:%M:%S")
+            total_time = end_time - start_time
+            total_time_str = str(total_time).split(".")[0]
+        else:
+            total_time_str = "N/A"
+        loaded_file_name_str = f"Loaded File: {self.loaded_file_name}" if hasattr(self, 'loaded_file_name') else "Loaded File: N/A"
+        net_control_name = "N/A"
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            if values[0] == self.net_control:
+                net_control_name = values[2]
+                break
+        total_regions = self.count_unique_regions()
+        self.update_status_text_view(
+            f"Net Control: {self.net_control} ({net_control_name})\n"
+            f"Current Net: {self.current_net_name}\n"
+            f"{status_summary}\n"
+            f"Traffic: {traffic_count}\n"
+            f"Relayed: {relayed_count}\n"
+            f"Sweep?: {sweep_count}\n"
+            f"Total Time: {total_time_str}\n"
+            f"Total Regions: {total_regions}\n"
+            f"Start Time: {self.time_start}\n"
+            f"End Time: {self.time_end}\n"
+            f"{loaded_file_name_str}"
+        )
+
+    def validate_call_sign(self, call_sign):
+        call_sign = call_sign.strip().upper()
+
+        # Basic US Amateur Radio call sign pattern:
+        # 1–2 letters, 1 number, 1–3 letters (e.g., K7ABC, KL5XYZ, W1AW)
+        pattern = r"^[A-Z]{1,2}\d[A-Z]{1,3}$"
+
+        if re.match(pattern, call_sign):
+            return call_sign
+        else:
+            messagebox.showerror(
+                "Invalid Call Sign",
+                "Enter a valid US Amateur Call Sign.\n\n"
+                "Format: 1–2 letters, a number, then 1–3 letters\n"
+                "Examples: K7ABC, KL5XYZ, W1AW"
+            )
+            return None
+
+    def handle_traffic_click(self, item):
+        traffic_input = simpledialog.askstring("Input", "Enter Traffic:")
+        if traffic_input:
+            self.update_traffic_cell(item, traffic_input)
+
+    def update_traffic_cell(self, item, traffic_input):
+        values = list(self.tree.item(item, "values"))
+        values[5] = traffic_input
+        self.tree.item(item, values=values)
+        self.unsaved_changes = True
+        if values[3] == "":
+            self.update_status_cell(item, "Present")
+        next_item = self.tree.next(item)
+        if next_item:
+            self.tree.focus(next_item)
+            self.tree.selection_set(next_item)
+
+    def reset_status_counts(self):
+        self.status_counts = {"Absent": 0, "Present": 0, "Excused": 0}
+
+    def reset_table_statuses(self):
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, "values"))
+            values[3] = "Absent"
+            self.tree.item(item, values=values)
+
+    def reset_status_and_columns(self):
+        for item in self.tree.get_children():
+            values = list(self.tree.item(item, "values"))
+            if values[3] != "Excused":
+                values[3] = "Absent"
+            values[4] = ""
+            values[5] = ""
+            values[6] = ""
+            self.tree.item(item, values=values)
+            self.unsaved_changes = True
+
+    def record_attendance(self, name, day, status):
+        if name in self.attendance:
+            self.attendance[name][day] = status
+
+    def display_attendance(self):
+        attendance_text = ""
+        for name, days in self.attendance.items():
+            attendance_text += f"{name}:\n"
+            for day, status in days.items():
+                attendance_text += f" Day {day}: {status}\n"
+        messagebox.showinfo("Attendance Record", attendance_text)
+
+    def show_user_guide(self):
+        self.show_user_guide_window()
+
+    def change_font_size(self, font_size):
+        if font_size == "Small":
+            self.set_font_size(10)
+        elif font_size == "Medium":
+            self.set_font_size(14)
+        elif font_size == "Large":
+            self.set_font_size(18)
+
+    def set_font_size(self, size):
+        font = ("Arial", size)
+        self.clock_label.config(font=font)
+        self.start_stop_button.config(font=font)
+        self.open_net_button.config(font=font)
+        self.search_button.config(font=font)
+        self.stopwatch_label.config(font=font)
+        self.start_info_label.config(font=font)
+        self.results_label.config(font=font)
+        self.stats_label.config(font=font)
+        self.stats_text_view.config(font=font)
+        style = ttk.Style()
+        style.configure("Treeview.Heading", font=font)
+        style.configure("Treeview", font=font)
+
+    def apply_separator_style(self):
+        for i, item in enumerate(self.tree.get_children()):
+            if i % 2 == 0:
+                self.tree.item(item, tags=('separator',))
+            else:
+                self.tree.item(item, tags=())
+
+    def clear_sweepers_list(self):
+        self.sweepers_tree.delete(*self.sweepers_tree.get_children())
+        self.update_results_label("Sweepers list cleared.")
+
+    def delete_sweeper(self):
+        selected_item = self.sweepers_tree.selection()
+        if selected_item:
+            self.sweepers_tree.delete(selected_item)
+            self.update_results_label("Sweeper deleted.")
+
+    def handle_this_month_click(self, item):
+        values = list(self.tree.item(item, "values"))
+        current_value = values[7]
+        new_value = simpledialog.askstring("Edit This Month", "Enter new value for This Month:", initialvalue=current_value)
+        if new_value is not None:
+            values[7] = new_value
+            self.tree.item(item, values=values)
+            self.unsaved_changes = True
+            self.update_row_color(item, values[7])
+
+    def update_row_color(self, item, this_month_value):
+        if this_month_value.isdigit() and int(this_month_value) >= 7:
+            self.tree.item(item, tags=('light_green',))
+        else:
+            self.tree.item(item, tags=())
+
+    def turn_caps_lock_on(self):
+        ctypes.windll.user32.keybd_event(0x14, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(0x14, 0, 2, 0)
+
+    def turn_caps_lock_off(self):
+        ctypes.windll.user32.keybd_event(0x14, 0, 2, 0)
+
+    def show_user_guide_window(self):
+        try:
+            webbrowser.open("UserGuide.html")
+        except FileNotFoundError:
+            messagebox.showerror("File Not Found", "UserGuide.html not found. Please ensure the file is in the correct directory.")
+
+    def show_system_requirements(self):
+        system_requirements = self.load_system_requirements_from_csv('system_requirements.csv')
+        messagebox.showinfo("System Requirements", system_requirements)
+
+    def load_system_requirements_from_csv(self, file_path):
+        system_requirements_text = ""
+        with open(file_path, mode='r') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                system_requirements_text += " ".join(row) + "\n"
+        return system_requirements_text.strip()
+
+    def edit_cell(self, item, col):
+        values = list(self.tree.item(item, "values"))
+        col_idx = int(col[1:]) - 1
+        current_value = values[col_idx]
+        new_value = simpledialog.askstring("Edit Cell", f"Enter new value for {self.columns[col_idx]}:", initialvalue=current_value)
+        if new_value is not None:
+            values[col_idx] = new_value
+            self.tree.item(item, values=values)
+            self.unsaved_changes = True
+
+    def handle_tab(self, event):
+        focused_item = self.tree.focus()
+        if focused_item:
+            col = self.tree.identify_column(event.x)
+            col_idx = int(col[1:]) - 1
+            next_col_idx = (col_idx + 1) % len(self.columns)
+            next_col = f"#{next_col_idx + 1}"
+            next_item = self.tree.next(focused_item) if next_col_idx == 0 else focused_item
+            self.tree.focus(next_item)
+            self.tree.selection_set(next_item)
+            self.tree.see(next_item)
+            self.tree.focus_set()
+            self.tree.focus(next_item)
+            self.tree.focus_force()
+
+    def count_unique_regions(self):
+        regions = set()
+        for item in self.sweepers_tree.get_children():
+            values = self.sweepers_tree.item(item, "values")
+            if len(values) > 3:
+                regions.add(values[3])
+        return len(regions)
+
+    def launch_database_utility(self):
+        if self.unsaved_changes:
+            confirm = messagebox.askyesno("Unsaved Changes", "There are unsaved changes. Do you want to save before launching the database utility?")
+            if confirm:
+                self.save_file()
+        subprocess.run(["python", "DatabaseUtility.py"])
+
+    def refresh_data(self):
+        if not self.tree.get_children():
+            messagebox.showwarning("No Data", "The table is empty. Please load data first.")
+            return
+        self.sort_column("Call Sign", ascending=True)
+        self.display_totals_and_times()
+        self.update_sweepers_tree_from_table()
+        self.update_results_label("Data refreshed")
+        # Ensure buttons remain visible
+        self.refresh_button.pack(side="left", padx=(5, 5))
+        self.reset_button.pack(side="left", padx=(5, 10))
+
+    def update_sweepers_tree_from_table(self):
+        self.sweepers_tree.delete(*self.sweepers_tree.get_children())
+        for item in self.tree.get_children():
+            values = self.tree.item(item, "values")
+            if values[6] == "Yes":
+                call_sign = values[0]
+                qth = values[1].upper()
+                name = values[2]
+                region = self.alaska_towns.get(qth, "Unknown")
+                self.sweepers_tree.insert("", "end", values=(call_sign, qth, name, region))
+
+    def minimize_command_window(self):
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 6)
+
+    def toggle_dark_mode(self):
+        self.dark_mode = not self.dark_mode
+        self.apply_dark_mode_styles()
+
+    def apply_dark_mode_styles(self):
+        bg_color = "black" if self.dark_mode else "white"
+        fg_color = "white" if self.dark_mode else "black"
+        self.root.config(bg=bg_color)
+        self.frame.config(bg=bg_color)
+        self.clock_label.config(bg=bg_color, fg=fg_color)
+        self.time_format_label.config(bg=bg_color, fg=fg_color)
+        self.start_stop_button.config(bg=bg_color, fg=fg_color)
+        self.open_net_button.config(bg=bg_color, fg=fg_color)
+        self.search_button.config(bg=bg_color, fg=fg_color)
+        self.stopwatch_label.config(bg=bg_color, fg=fg_color)
+        self.start_info_label.config(bg=bg_color, fg=fg_color)
+        self.results_label.config(bg=bg_color, fg=fg_color)
+        self.stats_label.config(bg=bg_color, fg=fg_color)
+        self.stats_text_view.config(bg=bg_color, fg=fg_color)
+        self.sweepers_label.config(bg=bg_color, fg=fg_color)
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Treeview", background=bg_color, foreground=fg_color, fieldbackground=bg_color)
+        style.configure("Treeview.Heading", background=bg_color, foreground=fg_color)
+        style.configure("Vertical.TScrollbar", background=bg_color, troughcolor=bg_color, arrowcolor=fg_color)
+        self.sweepers_tree.config(style="Treeview")
+        self.sweepers_scrollbar.config(style="Vertical.TScrollbar")
+        self.tree.config(style="Treeview")
+        self.scrollbar.config(style="Vertical.TScrollbar")
+
+    def show_disclaimer(self):
+        disclaimer_text = self.load_disclaimer_from_csv('Disclaimer.csv')
+        disclaimer_text += "\n\nFor support, contact: NL7PA@example.com"
+        messagebox.showinfo("Disclaimer", disclaimer_text)
+
+    def load_disclaimer_from_csv(self, file_path):
+        disclaimer_text = ""
+        try:
+            with open(file_path, mode='r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    disclaimer_text += " ".join(row) + "\n"
+        except FileNotFoundError:
+            disclaimer_text = "Disclaimer.csv not found. Please ensure the file is in the correct directory."
+        return disclaimer_text.strip()
+
+    def load_regions_from_csv(self, file_path):
+        regions = {}
+        try:
+            with open(file_path, mode='r') as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    if len(row) == 2:
+                        regions[row[0]] = row[1]
+        except FileNotFoundError:
+            messagebox.showerror("File Not Found", f"{file_path} not found. Please ensure the file is in the correct directory.")
+        return regions
+
+    def generate_row(self, index):
+        new_row = ["", "", "", "Absent", "", "", "", "0"]
+        return new_row
+
+    def reset_application(self):
+        if not self.tree.get_children():
+            messagebox.showinfo("Nothing to reset", "No data is currently loaded.")
+            return
+        if not messagebox.askyesno("Confirm Reset",
+                                  "This will clear ALL data, timers, net control, sweepers,\n"
+                                  "visitor count, and unsaved changes.\n\n"
+                                  "Are you sure you want to reset everything?"):
+            return
+        # Clear table
+        self.tree.delete(*self.tree.get_children())
+        # Clear sweepers
+        self.sweepers_tree.delete(*self.sweepers_tree.get_children())
+        # Reset important state variables
+        self.data = []
+        self.unsaved_changes = False
+        self.stopwatch_running = False
+        self.first_alert_triggered = False
+        self.status_counts = {"Absent": 0, "Present": 0, "Excused": 0}
+        self.total_call_sign_count = 0
+        self.visitor_count = 0
+        self.net_control = ""
+        self.current_net_name = ""
+        self.time_start = None
+        self.time_end = None
+        self.stopwatch_start_time = None
+        self.present_today = set()
+        self.loaded_file_name = None
+        # Reset UI elements
+        self.start_stop_button.config(text="Start Roll Call", bg="green")
+        self.stopwatch_label.config(text="", bg="green")
+        self.start_info_label.config(text="")
+        self.results_label.config(text="Application reset")
+        self.stats_text_view.config(state=tk.NORMAL)
+        self.stats_text_view.delete(1.0, tk.END)
+        self.stats_text_view.config(state=tk.DISABLED)
+        # Hide data-dependent buttons
+        self.refresh_button.pack_forget()
+        self.reset_button.pack_forget()
+        self.update_clock()
+        self.update_results_label("Application has been reset — ready for new session")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TableApp(root)
+    root.mainloop()
