@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Base Utility System Requirements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            color: #555;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .category {
+            background-color: #e0e0e0;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Base Utility System Requirements</h1>
+    <table>
+        <tr>
+            <th>Category</th>
+            <th>Requirement</th>
+            <th>Details</th>
+        </tr>
+        <!-- System Requirements -->
+        <tr class="category">
+            <td>System Requirements</td>
+            <td colspan="2">Operating System</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Operating System</td>
+            <td>Windows 10 or later (due to `ctypes` and `subprocess` usage)</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>RAM</td>
+            <td>4 GB minimum, 8 GB recommended</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Disk Space</td>
+            <td>50 MB (for the application and dependencies)</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Display</td>
+            <td>1024x768 resolution or higher</td>
+        </tr>
+        <!-- Python Requirements -->
+        <tr class="category">
+            <td>Python Requirements</td>
+            <td colspan="2">Python Version</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Python Version</td>
+            <td>3.7 or later</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>tkinter</td>
+            <td>Built-in with Python, used for GUI</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>ttk</td>
+            <td>Built-in with tkinter, used for themed widgets</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>simpledialog</td>
+            <td>Built-in with tkinter, used for dialogs</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>messagebox</td>
+            <td>Built-in with tkinter, used for message boxes</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>filedialog</td>
+            <td>Built-in with tkinter, used for file dialogs</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>datetime</td>
+            <td>Built-in with Python, used for date and time operations</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>csv</td>
+            <td>Built-in with Python, used for CSV file handling</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>re</td>
+            <td>Built-in with Python, used for regular expressions</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>ctypes</td>
+            <td>Built-in with Python, used for interacting with Windows API</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>subprocess</td>
+            <td>Built-in with Python, used for running external scripts</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>webbrowser</td>
+            <td>Built-in with Python, used for opening web pages</td>
+        </tr>
+        <!-- Dependencies -->
+        <tr class="category">
+            <td>Dependencies</td>
+            <td colspan="2">CSV Files and External Scripts</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>regions.csv</td>
+            <td>CSV file containing city-region mappings</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>preamble.csv</td>
+            <td>CSV file containing preamble text</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>PreambleRollCallNet.csv</td>
+            <td>CSV file containing roll call net preamble</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>PreambleOpenNet.csv</td>
+            <td>CSV file containing open net preamble</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>UserGuideDBU.html</td>
+            <td>HTML file for the user guide</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>Zipper.py</td>
+            <td>Python script for archiving files</td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Base Utility User Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        .section p {
+            margin-bottom: 15px;
+        }
+        .section ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        .section code {
+            background: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+        }
+        .section .note {
+            background: #f9f9f9;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data Base Utility User Guide</h1>
+        <p>This user guide provides a detailed explanation of how to use the <strong>Data Base Utility</strong> application. The application is designed to manage and manipulate data related to call signs, QTH (location), names, statuses, and other related fields. It includes features for loading, saving, editing, and analyzing data, as well as managing sweepers and attendance records.</p>
+
+        <!-- Clickable Link -->
+        <p><a href="Data Base Utility System Requirements.html" target="_blank">Data Base Utility System Requirements</a></p>
+
+        <div class="section">
+            <h2>1. Introduction</h2>
+            <p>The <strong>Data Base Utility</strong> is a Tkinter-based application that allows users to manage and analyze data for radio communication networks. It supports features such as:</p>
+            <ul>
+                <li>Loading and saving data in CSV format.</li>
+                <li>Editing and updating data entries.</li>
+                <li>Managing sweepers and attendance records.</li>
+                <li>Generating and archiving monthly rosters.</li>
+                <li>Support for dark mode and customizable font sizes.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. Getting Started</h2>
+            <p>To start using the application, ensure that the following prerequisites are met:</p>
+            <ul>
+                <li>Python 3.x is installed on your system.</li>
+                <li>Required Python libraries are installed (e.g., <code>tkinter</code>, <code>csv</code>, <code>datetime</code>).</li>
+                <li>The application is launched by running the script: <code>python DataBaseUtility.py</code>.</li>
+            </ul>
+            <p>Once the application is running, the main interface will appear.</p>
+        </div>
+
+        <div class="section">
+            <h2>3. Main Interface</h2>
+            <p>The main interface of the application consists of the following components:</p>
+            <ul>
+                <li><strong>Menu Bar:</strong> Contains options for file management, data management, and settings.</li>
+                <li><strong>Toolbar:</strong> Provides quick access to frequently used actions such as searching, refreshing, and resetting the table.</li>
+                <li><strong>Tree View:</strong> Displays the data in a tabular format with columns for Call Sign, QTH, Name, Status, and other fields.</li>
+                <li><strong>Stats View:</strong> Shows statistics such as attendance counts, visitor counts, and total time elapsed.</li>
+                <li><strong>Sweepers View:</strong> Displays a list of sweepers and their details.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>4. Toolbar</h2>
+            <p>The toolbar is located at the top of the application and provides quick access to the following actions:</p>
+            <ul>
+                <li><strong>Search:</strong>
+                    <ul>
+                        <li>Click this button to search for specific data in the table. A dialog box will appear where you can enter your search term.</li>
+                        <li>If the search term is found, the corresponding row will be highlighted. If no results are found, you can choose to add a new row with the search term.</li>
+                    </ul>
+                </li>
+                <li><strong>Refresh:</strong>
+                    <ul>
+                        <li>Click this button to refresh the table and update the statistics. This action recalculates totals for attendance, sweepers, and other metrics.</li>
+                        <li>The table will also be sorted alphabetically by the "Call Sign" column.</li>
+                    </ul>
+                </li>
+                <li><strong>Reset:</strong>
+                    <ul>
+                        <li>Click this button to reset the table to its default state. This action clears all attendance records, resets statuses to "Absent," and removes sweepers.</li>
+                        <li>The table will be sorted alphabetically by the "Call Sign" column, and focus will be set to the first row.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>The toolbar buttons are designed to streamline common tasks and improve the user experience.</p>
+        </div>
+
+        <div class="section">
+            <h2>5. Menu Options</h2>
+            <h3>5.1 File Menu</h3>
+            <ul>
+                <li><strong>Open:</strong> Load data from a CSV file.</li>
+                <li><strong>Save:</strong> Save the current data to a CSV file.</li>
+                <li><strong>Data Management:</strong>
+                    <ul>
+                        <li><strong>Create Monthly Roster:</strong> Generate a new monthly roster.</li>
+                        <li><strong>Archive Monthly Roster:</strong> Archive the current monthly roster.</li>
+                    </ul>
+                </li>
+                <li><strong>Exit:</strong> Close the application after confirming unsaved changes.</li>
+            </ul>
+
+            <h3>5.2 Options Menu</h3>
+            <ul>
+                <li><strong>Font Size:</strong> Change the font size of the interface (Small, Medium, Large).</li>
+                <li><strong>Preamble:</strong> Load preamble text for different types of nets (e.g., Roll Call Net, Open Net).</li>
+                <li><strong>Net Type:</strong> Select the type of net (Roll Call Net or Open Net).</li>
+                <li><strong>Toggle Dark Mode:</strong> Enable or disable dark mode for the interface.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>6. Working with Data</h2>
+            <h3>6.1 Loading Data</h3>
+            <p>To load data into the application:</p>
+            <ol>
+                <li>Go to the <strong>File</strong> menu and select <strong>Open</strong>.</li>
+                <li>Choose a CSV file from your system.</li>
+                <li>The data will be displayed in the Tree View.</li>
+            </ol>
+
+            <h3>6.2 Saving Data</h3>
+            <p>To save the current data:</p>
+            <ol>
+                <li>Go to the <strong>File</strong> menu and select <strong>Save</strong>.</li>
+                <li>Choose a location and filename for the CSV file.</li>
+                <li>The data will be saved to the specified file.</li>
+            </ol>
+
+            <h3>6.3 Editing Data</h3>
+            <p>To edit data in the Tree View:</p>
+            <ul>
+                <li>Double-click on a cell to edit its value.</li>
+                <li>Use the context menu (right-click) to insert, delete, copy, or paste rows.</li>
+                <li>Click on certain columns (e.g., Status, Relayed, Traffic) to update their values interactively.</li>
+            </ul>
+
+            <h3>6.4 How To: Create a New Roll Call Net</h3>
+            <p>To create a new Roll Call Net, follow these steps:</p>
+            <ol>
+                <li><strong>Load CSV File:</strong>
+                    <ul>
+                        <li>Go to the <strong>File</strong> menu and select <strong>Open</strong>.</li>
+                        <li>Load a properly formatted CSV file that contains the roster data.</li>
+                    </ul>
+                </li>
+                <li><strong>Press Reset:</strong>
+                    <ul>
+                        <li>Click the <strong>Reset</strong> button on the toolbar to clear any existing data and reset the table to its default state.</li>
+                    </ul>
+                </li>
+                <li><strong>Select Net Type:</strong>
+                    <ul>
+                        <li>Go to the <strong>Options</strong> menu and click <strong>Net Type</strong>.</li>
+                        <li>Select <strong>Roll Call Net</strong> from the dropdown menu.</li>
+                    </ul>
+                </li>
+                <li><strong>Enter Required Inputs:</strong>
+                    <ul>
+                        <li>A dialog box will appear asking you to input the necessary information for the net name.</li>
+                        <li>Enter the name of the Roll Call Net and click <strong>OK</strong>.</li>
+                    </ul>
+                </li>
+                <li><strong>Refresh:</strong>
+                    <ul>
+                        <li>Click the <strong>Refresh</strong> button on the toolbar to update the table and recalculate statistics.</li>
+                    </ul>
+                </li>
+                <li><strong>Save File:</strong>
+                    <ul>
+                        <li>Go to the <strong>File</strong> menu and select <strong>Save</strong>.</li>
+                        <li>Save the file using the desired name and location.</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>Once these steps are completed, your new Roll Call Net will be ready for use.</p>
+
+            <h3>6.5 How To: Create a New Open Net</h3>
+            <p>To create a new Open Net, follow these steps:</p>
+            <ol>
+                <li><strong>Load CSV File:</strong>
+                    <ul>
+                        <li>Go to the <strong>File</strong> menu and select <strong>Open</strong>.</li>
+                        <li>Load a properly formatted CSV file that contains the roster data.</li>
+                    </ul>
+                </li>
+                <li><strong>Press Reset:</strong>
+                    <ul>
+                        <li>Click the <strong>Reset</strong> button on the toolbar to clear any existing data and reset the table to its default state.</li>
+                    </ul>
+                </li>
+                <li><strong>Select Net Type:</strong>
+                    <ul>
+                        <li>Go to the <strong>Options</strong> menu and click <strong>Net Type</strong>.</li>
+                        <li>Select <strong>Open Net</strong> from the dropdown menu.</li>
+                    </ul>
+                </li>
+                <li><strong>Enter Required Inputs:</strong>
+                    <ul>
+                        <li>A dialog box will appear asking you to input the necessary information for the net name.</li>
+                        <li>Enter the name of the Open Net and click <strong>OK</strong>.</li>
+                    </ul>
+                </li>
+                <li><strong>Refresh:</strong>
+                    <ul>
+                        <li>Click the <strong>Refresh</strong> button on the toolbar to update the table and recalculate statistics.</li>
+                    </ul>
+                </li>
+                <li><strong>Save File:</strong>
+                    <ul>
+                        <li>Go to the <strong>File</strong> menu and select <strong>Save</strong>.</li>
+                        <li>Save the file using the desired name and location.</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>Once these steps are completed, your new Open Net will be ready for use.</p>
+        </div>
+
+        <div class="section">
+            <h2>7. Managing Sweepers</h2>
+            <p>The application allows you to manage sweepers (individuals responsible for sweeping the net):</p>
+            <ul>
+                <li>Click on the <strong>Sweep?</strong> column to mark a row as a sweeper.</li>
+                <li>The Sweepers View will display the list of sweepers.</li>
+                <li>Use the context menu in the Sweepers View to clear or delete sweepers.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>8. Attendance and Stats</h2>
+            <p>The application tracks attendance and provides statistics:</p>
+            <ul>
+                <li>The <strong>Stats View</strong> displays counts for Present, Excused, and Visitor attendees.</li>
+                <li>The total time elapsed for the net is also shown.</li>
+                <li>Attendance records can be archived or reset as needed.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>9. Dark Mode</h2>
+            <p>The application supports a dark mode for better visibility in low-light environments:</p>
+            <ul>
+                <li>Go to the <strong>Options</strong> menu and select <strong>Toggle Dark Mode</strong>.</li>
+                <li>The interface will switch between light and dark themes.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>10. Understanding File Headers</h2>
+            <p>The application uses specific headers in CSV files to organize and interpret data. One such header is:</p>
+            <pre><code>"Time Start,Time End,Total Present,Current Net Name,Total Excused,Net Control"</code></pre>
+            <p>This header is used to store metadata about the net session, including the start and end times, attendance counts, and the net control operator. Below is an example of how this header is used in a CSV file:</p>
+            <pre><code>Time Start,Time End,Total Present,Current Net Name,Total Excused,Net Control
+2024-12-14 18:00:05,2024-12-14 18:25:53,0,Sample Roll Call Net,0,NL7PA</code></pre>
+
+            <h3>10.1 Field Descriptions</h3>
+            <ul>
+                <li><strong>Time Start:</strong> The timestamp when the net session began. Format: <code>YYYY-MM-DD HH:MM:SS</code>.</li>
+                <li><strong>Time End:</strong> The timestamp when the net session ended. Format: <code>YYYY-MM-DD HH:MM:SS</code>.
+                    <ul>
+                        <li>The total time the network was active is calculated based on the difference between the <strong>Time Start</strong> and <strong>Time End</strong>. For example:
+                            <ul>
+                                <li>If <code>Time Start = 2024-12-14 18:00:05</code> and <code>Time End = 2024-12-14 18:25:53</code>, the total time elapsed is <code>00:25:48</code> (25 minutes and 48 seconds).</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li><strong>Total Present:</strong> The total number of attendees marked as "Present" during the net session.</li>
+                <li><strong>Current Net Name:</strong> The name of the net session (e.g., "Sample Roll Call Net").</li>
+                <li><strong>Total Excused:</strong> The total number of attendees marked as "Excused" during the net session.
+                    <ul>
+                        <li>There are two reasons a person may be marked as "Excused":</li>
+                        <ol>
+                            <li><strong>Request to be Excused:</strong> If the person checks in and then requests to be excused, their present count will increment by +1.</li>
+                            <li><strong>Vacation or Other Reasons:</strong> If the person is excused for vacation or other reasons, they will be marked as "Excused" but will not receive credit.</li>
+                        </ol>
+                    </ul>
+                </li>
+                <li><strong>Net Control:</strong> The call sign of the net control operator (e.g., "NL7PA").</li>
+            </ul>
+
+            <h3>10.2 Example Data</h3>
+            <p>In the example above:</p>
+            <ul>
+                <li>The net session started at <code>2024-12-14 18:00:05</code> and ended at <code>2024-12-14 18:25:53</code>.</li>
+                <li>The total time elapsed is <code>00:25:48</code> (25 minutes and 48 seconds).</li>
+                <li>There were <code>0</code> attendees marked as "Present" and <code>0</code> marked as "Excused".</li>
+                <li>The net was named <code>"Sample Roll Call Net"</code>.</li>
+                <li>The net control operator was <code>"NL7PA"</code>.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>11. Troubleshooting</h2>
+            <p>If you encounter any issues while using the application, refer to the following troubleshooting scenarios:</p>
+            <ul>
+                <li><strong>Loading the Wrong Type of File:</strong>
+                    <ul>
+                        <li>If you attempt to load a file that is not in the correct CSV format, the application will display an error message: <code>"Failed to open file: [error message]"</code>.</li>
+                        <li>Ensure that the file you are loading is a valid CSV file with the correct headers and data structure.</li>
+                    </ul>
+                </li>
+                <li><strong>Editing When No Data is in the Table:</strong>
+                    <ul>
+                        <li>If you try to edit a cell or perform an action (e.g., insert a row) when no data is loaded in the table, the application will display a warning message: <code>"No Data: Please load data first."</code>.</li>
+                        <li>Load a valid CSV file before attempting to edit or modify the data.</li>
+                    </ul>
+                </li>
+                <li><strong>Saving When No Data is Loaded:</strong>
+                    <ul>
+                        <li>If you attempt to save the data when no data is loaded in the table, the application will display a warning message: <code>"No Data: Please load data first."</code>.</li>
+                        <li>Load a valid CSV file before attempting to save the data.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>If you encounter any other issues, ensure that the required Python libraries are installed, check the CSV file format for compatibility, and refer to the application logs for error details.</p>
+        </div>
+
+        <div class="section">
+            <h2>12. Conclusion</h2>
+            <p>The <strong>Data Base Utility</strong> is a powerful tool for managing radio communication data. With its intuitive interface and robust features, it simplifies the process of tracking attendance, managing sweepers, and analyzing data. If you have any questions or need further assistance, please refer to the documentation or contact support.</p>
+        </div>
+    </div>
+</body>
+</html>

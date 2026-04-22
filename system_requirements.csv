@@ -1,0 +1,8 @@
+Component,Requirement
+Operating System,Windows 7 or later, macOS 10.10 or later, Linux (with Python 3.x installed)
+Python Version,3.6 or later
+Python Libraries,tkinter, datetime, csv, re, ctypes, webbrowser
+Memory,2 GB RAM (4 GB recommended for larger datasets)
+Disk Space,100 MB free disk space
+Display,1024x768 resolution or higher
+Internet Connection,Required for accessing online user guide

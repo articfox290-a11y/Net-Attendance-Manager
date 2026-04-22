@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Net Attendance Manager - User Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        h2 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        code {
+            background: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        .note {
+            background: #f9f9f9;
+            border-left: 5px solid #73AD21;
+            padding: 10px;
+            margin: 20px 0;
+        }
+        .support {
+            margin-top: 30px;
+            font-weight: bold;
+            color: #007BFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Net Attendance Manager - User Guide</h1>
+
+        <h2>Table of Contents</h2>
+        <ul>
+            <li><a href="#introduction">Introduction</a></li>
+            <li><a href="#system-requirements">System Requirements</a></li>
+            <li><a href="#installation">Installation</a></li>
+            <li><a href="#getting-started">Getting Started</a></li>
+            <li><a href="#main-features">Main Features</a></li>
+            <ul>
+                <li><a href="#menu-bar">Menu Bar</a></li>
+                <li><a href="#top-frame">Top Frame</a></li>
+                <li><a href="#tree-view">Tree View</a></li>
+                <li><a href="#stats-view">Stats View</a></li>
+                <li><a href="#sweepers-view">Sweepers View</a></li>
+            </ul>
+            <li><a href="#advanced-features">Advanced Features</a></li>
+            <ul>
+                <li><a href="#data-management">Data Management</a></li>
+                <li><a href="#dark-mode">Dark Mode</a></li>
+                <li><a href="#font-size">Font Size</a></li>
+            </ul>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+            <li><a href="#disclaimer">Disclaimer</a></li>
+            <li><a href="#support">Support</a></li>
+        </ul>
+
+        <h2 id="introduction">Introduction</h2>
+        <p>
+            The <strong>Net Attendance Manager</strong> is a comprehensive tool designed to manage and track attendance during net sessions. It provides a user-friendly interface for recording attendance, managing sweepers, and generating reports. This guide will walk you through the features and functionalities of the application.
+        </p>
+
+        <h2 id="system-requirements">System Requirements</h2>
+        <p>Before using the Net Attendance Manager, ensure your system meets the following requirements:</p>
+        <ul>
+            <li><strong>Operating System</strong>: Windows 10 or later</li>
+            <li><strong>Python Version</strong>: Python 3.7 or later</li>
+            <li><strong>Dependencies</strong>: Ensure all required Python libraries are installed. You can install them using <code>pip install -r requirements.txt</code>.</li>
+            <li><strong>Disk Space</strong>: At least 50 MB of free disk space.</li>
+            <li><strong>Screen Resolution</strong>: 1024x768 or higher.</li>
+        </ul>
+
+        <h2 id="installation">Installation</h2>
+        <ol>
+            <li><strong>Download the Application</strong>:
+                <ul>
+                    <li>Download the application files from the official repository.</li>
+                </ul>
+            </li>
+            <li><strong>Set Up the Environment</strong>:
+                <ul>
+                    <li>Ensure Python is installed on your system.</li>
+                    <li>Install the required dependencies by running:
+                        <code>pip install -r requirements.txt</code>
+                    </li>
+                </ul>
+            </li>
+            <li><strong>Run the Application</strong>:
+                <ul>
+                    <li>Navigate to the application directory and run the following command:
+                        <code>python NetAttendanceManager.py</code>
+                    </li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2 id="getting-started">Getting Started</h2>
+        <ol>
+            <li><strong>Launch the Application</strong>:
+                <ul>
+                    <li>Double-click the <code>NetAttendanceManager.py</code> file or run it from the command line.</li>
+                </ul>
+            </li>
+            <li><strong>Initial Setup</strong>:
+                <ul>
+                    <li>The application will automatically set the working directory to <code>\Net Attendance Manager</code> on the current drive.</li>
+                    <li>Ensure the required directories (<code>Emergency</code>, <code>Past Rosters</code>, <code>UserGuide_files</code>) are present in the working directory.</li>
+                </ul>
+            </li>
+            <li><strong>Load Data</strong>:
+                <ul>
+                    <li>Use the <strong>File > Open</strong> menu to load a CSV file containing attendance data.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2 id="main-features">Main Features</h2>
+
+        <h3 id="menu-bar">Menu Bar</h3>
+        <p>The menu bar at the top of the application provides access to various functionalities:</p>
+        <ul>
+            <li><strong>File</strong>:
+                <ul>
+                    <li><strong>Open</strong>: Load a CSV file containing attendance data.</li>
+                    <li><strong>Save</strong>: Save the current data to a CSV file.</li>
+                    <li><strong>Data Management</strong>: Access the database utility for advanced data management.</li>
+                    <li><strong>Exit</strong>: Close the application.</li>
+                </ul>
+            </li>
+            <li><strong>Options</strong>:
+                <ul>
+                    <li><strong>Font Size</strong>: Adjust the font size of the interface (Small, Medium, Large).</li>
+                    <li><strong>Dark Mode</strong>: Toggle between light and dark themes.</li>
+                </ul>
+            </li>
+            <li><strong>Help</strong>:
+                <ul>
+                    <li><strong>User Guide</strong>: Open this user guide.</li>
+                    <li><strong>System Requirements</strong>: View the system requirements.</li>
+                    <li><strong>Disclaimer</strong>: Read the application disclaimer.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3 id="top-frame">Top Frame</h3>
+        <p>The top frame contains essential controls and information:</p>
+        <ul>
+            <li><strong>Clock</strong>: Displays the current time in 24-hour, 12-hour, or UTC format. Click to toggle between formats.</li>
+            <li><strong>Start/Stop Roll Call</strong>: Begin or end the roll call session.</li>
+            <li><strong>Open Net</strong>: Start a new net session.</li>
+            <li><strong>Search</strong>: Search for entries in the table.</li>
+            <li><strong>Stopwatch</strong>: Tracks the duration of the net session.</li>
+            <li><strong>Refresh</strong>: Refresh the data in the table.</li>
+        </ul>
+
+        <h3 id="tree-view">Tree View</h3>
+        <p>The main table displays attendance data with the following columns:</p>
+        <ul>
+            <li><strong>Call Sign</strong>: Unique identifier for each participant.</li>
+            <li><strong>QTH</strong>: Location of the participant.</li>
+            <li><strong>Name</strong>: Name of the participant.</li>
+            <li><strong>Status</strong>: Attendance status (Present, Absent, Excused).</li>
+            <li><strong>Relayed</strong>: Indicates if the participant was relayed.</li>
+            <li><strong>Traffic</strong>: Notes on traffic handled by the participant.</li>
+            <li><strong>Sweep?</strong>: Indicates if the participant is a sweeper.</li>
+            <li><strong>This Month</strong>: Number of times the participant has attended this month.</li>
+        </ul>
+        <p><strong>Actions</strong>:</p>
+        <ul>
+            <li><strong>Single-Click</strong>: Update status or other fields.</li>
+            <li><strong>Double-Click</strong>: Edit cell values.</li>
+            <li><strong>Right-Click</strong>: Access context menus for row manipulation.</li>
+        </ul>
+
+        <h3 id="stats-view">Stats View</h3>
+        <p>The stats view provides a summary of the current session:</p>
+        <ul>
+            <li><strong>Roster Count</strong>: Total number of participants.</li>
+            <li><strong>Present</strong>: Number of participants present.</li>
+            <li><strong>Excused</strong>: Number of participants excused.</li>
+            <li><strong>Visitors</strong>: Number of visitors.</li>
+            <li><strong>Traffic</strong>: Number of traffic entries.</li>
+            <li><strong>Relayed</strong>: Number of relayed participants.</li>
+            <li><strong>Sweep?</strong>: Number of sweepers.</li>
+            <li><strong>Total Time</strong>: Duration of the net session.</li>
+            <li><strong>Start Time</strong>: Start time of the session.</li>
+            <li><strong>End Time</strong>: End time of the session.</li>
+        </ul>
+
+        <h3 id="sweepers-view">Sweepers View</h3>
+        <p>The sweepers view lists participants who are sweepers:</p>
+        <ul>
+            <li><strong>Call Sign</strong>: Call sign of the sweeper.</li>
+            <li><strong>QTH</strong>: Location of the sweeper.</li>
+            <li><strong>Name</strong>: Name of the sweeper.</li>
+            <li><strong>Region</strong>: Region of the sweeper.</li>
+        </ul>
+        <p><strong>Actions</strong>:</p>
+        <ul>
+            <li><strong>Right-Click</strong>: Access context menus for managing sweepers.</li>
+        </ul>
+
+        <h2 id="advanced-features">Advanced Features</h2>
+
+        <h3 id="data-management">Data Management</h3>
+        <p>Access advanced data management tools via the <strong>File > Data Management > Database Utility</strong> menu.</p>
+
+        <h3 id="dark-mode">Dark Mode</h3>
+        <p>Toggle between light and dark themes using the <strong>Options > Dark Mode</strong> menu.</p>
+
+        <h3 id="font-size">Font Size</h3>
+        <p>Adjust the font size of the interface using the <strong>Options > Font Size</strong> menu.</p>
+
+        <h2 id="troubleshooting">Troubleshooting</h2>
+        <ul>
+            <li><strong>File Not Found</strong>: Ensure all required files and directories are present in the working directory.</li>
+            <li><strong>Unsaved Changes</strong>: Always save your data before exiting the application.</li>
+            <li><strong>Performance Issues</strong>: Close unnecessary applications to free up system resources.</li>
+        </ul>
+
+        <h2 id="disclaimer">Disclaimer</h2>
+        <p>The Net Attendance Manager is provided "as is" without warranty of any kind. The developers are not responsible for any data loss or damages resulting from the use of this application.</p>
+
+        <h2 id="support">Support</h2>
+        <p class="support">For support, please contact: <strong>NL7PA@example.com</strong></p>
+
+        <p>Thank you for using the Net Attendance Manager!</p>
+    </div>
+</body>
+</html>
